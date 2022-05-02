@@ -139,12 +139,12 @@
 
 	<script type="text/javascript">
 		/** Global variables */
-		/** Your code goes here */
 		var openTypeFont = null;
-        var svgHTML = '';
-        var plane_select = 0;
-        var code_point = 0;
-        var unicode = ['BMP', 'SMP', 'SIP', 'TIP', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', 'SSP', 'PUA-A', 'PUA-B'];
+		var svgHTML = '';
+		var plane_select = 0;
+		var code_point = 0;
+		var unicode = ['BMP','SMP','SIP','TIP','4','5','6','7','8','9','10','11','12','13','SPP','PUA-A','PUA-B'];
+		/** Your code goes here */
 		/***/
 
 
@@ -153,97 +153,69 @@
 			console.log('start create_font_svg()...');
 
             /** Your code goes here */
-			var svgRectSize = Math.floor((1500- 8 * 17) / 17);
+			if(openTypeFont !== null){
+                d3.select('#svg_image')
+                    .html('')
+                ;
  
-            var currentSelectPlane = null;
+                d3.select('#svg_text')
+                    .html('')
+                ;
  
-            svg1.selectAll("rect")
-                .data(unicode)
-                .enter()
-                .append("rect")
-                .attr("class", 'unicode_planes')
-                .classed("selected", function(d, i){
-                    if(i == plane_select){
-                        currentSelectPlane = d3.select(this);
-                        return true;
+                var str = String.fromCodePoint(code_point);
+                var font = openTypeFont;
+ 
+                var glyph = font.stringToGlyphs(str)[0];
+ 
+                var mkPath = function(commands, height){
+                    var p = new MyPath();
+                    var c = [];
+                    for (let i = 0; i < commands.length; i += 1) {
+                        const cmd = commands[i];
+                        if (cmd.type === 'M') {
+                            p.moveTo(cmd.x, height-cmd.y);
+                            c.push([cmd.x, height-cmd.y]);
+                        } else if (cmd.type === 'L') {
+                            p.lineTo(cmd.x, height-cmd.y);
+                            c.push([cmd.x, height-cmd.y]);
+                        } else if (cmd.type === 'Q') {
+                            p.quadraticCurveTo(cmd.x1, height-cmd.y1, cmd.x, height-cmd.y);
+                            c.push([cmd.x1, height-cmd.y1]);
+                            c.push([cmd.x, height-cmd.y]);
+                        } else if (cmd.type === 'C') {
+                            p.curveTo(cmd.x1, height-cmd.y1,cmd.x2,height-cmd.y2,cmd.x, height-cmd.y);
+                            c.push([cmd.x1, height-cmd.y1]);
+                            c.push([cmd.x2,height-cmd.y2]);
+                            c.push([cmd.x, height-cmd.y]);
+                        } else if (cmd.type === 'Z') {
+                            p.closePath();
+                        }
                     }
-                    return false;
-                })
-                .attr("id", function(d,i){
-                    return 'plane' + i;
-                })
-                .attr("x", function(d, i) {
-                    return  8 + i * svgRectSize + (i) * 8;
-                })
-                .attr("y", 8)
-                .attr("width", svgRectSize)
-                .attr("height", svgRectSize)
-                .attr("fill", function(d, i) {
-                    return 'rgb(' 
-                    + (0).toString() 
-                    + ', '
-                    + (i % 17 * 16).toString() 
-                    + ', '  
-                    + (i % 17 * 16).toString() 
-                    + ')';
-                    }
-                )
-                .on("mousemove", function() {
-                    //console.log();
-                    //Get this bar's x/y values, then augment for the tooltip
+                    return [ p, c ];
+                };
  
-                    console.log(d3.mouse(this));
-                    var xPosition = parseInt(d3.mouse(this)[0]);
-                    var yPosition = parseInt(d3.mouse(this)[1]);
+                var svgPathObj = mkPath(glyph.path.commands, font.unitsPerEm);
+                var tmpPath = svgPathObj[0];
  
-                    d3.select("#tooltip_planes").remove();
+                var svg3 = d3.select('#svg_image')
+                                .append('svg')
+                                .attr("xmlns", 'http://www.w3.org/2000/svg')
+                                .attr("xmlns:svg", 'http://www.w3.org/2000/svg')
+                                .attr("xmlns:xlink", 'http://www.w3.org/1999/xlink')
+                                .attr('viewBox', [0, -glyph.yMin, font.unitsPerEm, font.unitsPerEm].join(' '))
+                ;
  
-                    //Create the tooltip label
-                    svg1.append("text")
-                        .attr("id", "tooltip_planes")
-                        .attr("x", xPosition + 24)
-                        .attr("y", yPosition)
-                        .attr("text-anchor", "middle")
-                        .attr("font-family", "sans-serif")
-                        .attr("font-size", "11px")
-                        .attr("font-weight", "bold")
-                        .attr("fill", "white")
-                        .text(xPosition + ', ' + yPosition);
-                })
-                .on("mouseout", function(){
-                    d3.select("#tooltip_planes").remove();
-                })
-                .on("click", function(o_pe, d){
-                    plane_select = unicode.indexOf(o_pe);
+                svg3.append('path')
+                    .attr('d', tmpPath.toPathData())
+                    .attr('class', 'font-svg')
+                ;
  
-                    currentSelectPlane.classed("selected", false);
+                d3.select('#svg_text')
+                    .html(svg3.node().outerHTML)
+                ;
  
-                    currentSelectPlane = d3.select('#plane' + plane_select)
-                        .classed("selected", true)
-                    ;
- 
-                    //console.log(d + ', ' + plane_select + ', ' + o_pe);
- 
-                    d3.select('#plane_now')
-                        .html(d + ', plane_select = ' + plane_select)
-                    ;
- 
-                    build_plane();
-                })
-            ;
- 
-            svg1.selectAll("text")
-                    .data(unicode)
-                    .enter()
-                    .append("text")
-                    .text(function(d){ return d; })
-                    .attr("x", function(d, i) {
-                        return  16 + i * svgRectSize + (i) * 8;
-                    })
-                    .attr("y", 32)
-                    .attr("fill", "#ff0")
-                    .attr("font-size", "12pt")
-            ;
+                svgHTML = svg3.node().outerHTML;
+            }
 
 			console.log('end create_font_svg()...');
 		};
@@ -255,97 +227,114 @@
 			console.log('start build_plane()...');
 			
             /** Your code goes here */
-			var svgRectSize = Math.floor((1500- 8 * 17) / 17);
- 
-            var currentSelectPlane = null;
- 
-            svg1.selectAll("rect")
-                .data(unicode)
-                .enter()
-                .append("rect")
-                .attr("class", 'unicode_planes')
-                .classed("selected", function(d, i){
-                    if(i == plane_select){
-                        currentSelectPlane = d3.select(this);
-                        return true;
-                    }
-                    return false;
-                })
-                .attr("id", function(d,i){
-                    return 'plane' + i;
-                })
-                .attr("x", function(d, i) {
-                    return  8 + i * svgRectSize + (i) * 8;
-                })
-                .attr("y", 8)
-                .attr("width", svgRectSize)
-                .attr("height", svgRectSize)
-                .attr("fill", function(d, i) {
-                    return 'rgb(' 
-                    + (0).toString() 
-                    + ', '
-                    + (i % 17 * 16).toString() 
-                    + ', '  
-                    + (i % 17 * 16).toString() 
-                    + ')';
-                    }
-                )
-                .on("mousemove", function() {
-                    //console.log();
-                    //Get this bar's x/y values, then augment for the tooltip
- 
-                    console.log(d3.mouse(this));
-                    var xPosition = parseInt(d3.mouse(this)[0]);
-                    var yPosition = parseInt(d3.mouse(this)[1]);
- 
-                    d3.select("#tooltip_planes").remove();
- 
-                    //Create the tooltip label
-                    svg1.append("text")
-                        .attr("id", "tooltip_planes")
-                        .attr("x", xPosition + 24)
-                        .attr("y", yPosition)
-                        .attr("text-anchor", "middle")
-                        .attr("font-family", "sans-serif")
-                        .attr("font-size", "11px")
-                        .attr("font-weight", "bold")
-                        .attr("fill", "white")
-                        .text(xPosition + ', ' + yPosition);
-                })
-                .on("mouseout", function(){
-                    d3.select("#tooltip_planes").remove();
-                })
-                .on("click", function(o_pe, d){
-                    plane_select = unicode.indexOf(o_pe);
- 
-                    currentSelectPlane.classed("selected", false);
- 
-                    currentSelectPlane = d3.select('#plane' + plane_select)
-                        .classed("selected", true)
-                    ;
- 
-                    //console.log(d + ', ' + plane_select + ', ' + o_pe);
- 
-                    d3.select('#plane_now')
-                        .html(d + ', plane_select = ' + plane_select)
-                    ;
- 
-                    build_plane();
-                })
-            ;
- 
-            svg1.selectAll("text")
-                    .data(unicode)
-                    .enter()
-                    .append("text")
-                    .text(function(d){ return d; })
-                    .attr("x", function(d, i) {
-                        return  16 + i * svgRectSize + (i) * 8;
-                    })
-                    .attr("y", 32)
-                    .attr("fill", "#ff0")
-                    .attr("font-size", "12pt")
-            ;
+			var dataset=new Array(65536).fill();
+			var w = 1024;
+			var h = 1024;
+
+			var svg2 = d3.select("#plane") // body
+							.append("svg")
+							.attr("id", 'svg')
+							.attr("width", w)
+							.attr("height", h)
+							.attr("xmlns", 'http://www.w3.org/2000/svg')
+							.attr("xmlns:svg", 'http://www.w3.org/2000/svg')
+							.attr("xmlns:xlink", 'http://www.w3.org/1999/xlink')
+			;
+
+			svg2.selectAll("rect")
+					.data(dataset)
+						.enter()
+						.append("rect")
+						.attr("x", function(d, i) {
+							return (i % 256) * 4;
+						})
+						.attr("y", function(d, i) {
+							return Math.floor(i / 256) * 4;
+						})
+						.attr("width", 8)
+						.attr("height", 8)
+						.attr("fill", function(d, i) {
+							var value = 'rgb(' 
+									+ (0).toString() 
+									+ ', '
+									+ (255 - Math.floor(i / 256) * 2).toString() 
+									+ ', '  
+									+ ( 255 - (i % 256) ).toString() 
+									+ ')'
+							;
+
+							var cp = plane_select * 65536 + i;
+
+							if ((cp >= 0xD800) && (cp <= 0xDB7F)){
+								value = 'red';
+							}
+							else if ((cp >= 0xDB80) && (cp <= 0xDBFF)){
+								value = 'yellow';
+							}
+							else if ((cp >= 0xDC00) && (cp <= 0xDFFF)){
+								value = 'cyan';
+							}
+				
+							return value;
+						})
+						.on("click", function(event){
+							var coords = d3.mouse(this);
+							d3.select('#tooltip_click')
+								.remove()
+							;
+						
+							svg2.append("text")
+								.text( '0x' + "000000".substr(code_point.toString(16).length) + code_point.toString(16) + ', ' + code_point.toString() + ', ' + String.fromCodePoint(code_point))
+								.attr("x", function(d, i){
+									return coords[0] + 8;
+								})
+								.attr("y", function(d, i){
+									return Math.floor(coords[1]) + 64;
+								})
+								.attr("fill", "#ff0")
+								.attr("font-size", "24pt")
+								.attr("id", "tooltip_click")
+							; 
+
+							d3.select(this)
+								.attr("fill", "orange")
+							;
+						
+							create_font_svg();
+						})
+						.on("mouseover", function(event){
+							var coords = d3.mouse(this);
+
+							code_point = plane_select * 65536 + Math.floor(coords[1]/4)*256 + Math.floor(coords[0]/4);
+							code_point = Math.max(0, code_point);
+
+							svg2.append("text")
+								.text( '0x' + "000000".substr(code_point.toString(16).length) + code_point.toString(16) + ', ' + code_point.toString() + ', ' + String.fromCodePoint(code_point))
+								.attr("x", function(d, i){
+									return coords[0] + 8;
+								})
+								.attr("y", function(d, i){
+									return Math.floor(coords[1]) + 64;
+								})
+								.attr("fill", "#ff0")
+								.attr("font-size", "24pt")
+								.attr("id", "tooltip")
+							; 
+
+							d3.select(this)
+								.attr("fill", "orange")
+							;    
+						})
+						.on("mouseout", function(d){
+							d3.select("#tooltip").remove();
+						})
+						.append("title")
+						.text(function(d, i) {
+							var start = plane_select * 65536;
+							return '0x' + "000000".substr(( start + i ).toString(16).length) + ( start + i ).toString(16) + ', ' + ( start + i ) + ', ' + String.fromCodePoint(start + i); 
+						})
+			;////////
+
             console.log('end build_plane()...');
 		};
 		/***/
@@ -356,62 +345,49 @@
 
 			/** Your code goes here */
 			var svg1 = d3.select('#planes')
-                .append('svg')
-                .attr('viewBox', '0 0 1500 100')
-                .attr('style', 'height:100%;width:100%')
-                .attr('id', 'svgplanes')
-                .attr("xmlns", 'http://www.w3.org/2000/svg')
-                .attr("xmlns:svg", 'http://www.w3.org/2000/svg')
-                .attr("xmlns:xlink", 'http://www.w3.org/1999/xlink')
-            ;
- 
-            var svgRectSize = Math.floor((1500- 8 * 17) / 17);
- 
-            var currentSelectPlane = null;
- 
-            svg1.selectAll("rect")
-                .data(unicode)
-                .enter()
-                .append("rect")
-                .attr("class", 'unicode_planes')
-                .classed("selected", function(d, i){
-                    if(i == plane_select){
-                        currentSelectPlane = d3.select(this);
-                        return true;
-                    }
-                    return false;
-                })
-                .attr("id", function(d,i){
-                    return 'plane' + i;
-                })
-                .attr("x", function(d, i) {
-                    return  8 + i * svgRectSize + (i) * 8;
-                })
-                .attr("y", 8)
-                .attr("width", svgRectSize)
-                .attr("height", svgRectSize)
-                .attr("fill", function(d, i) {
-                    return 'rgb(' 
-                    + (0).toString() 
-                    + ', '
-                    + (i % 17 * 16).toString() 
-                    + ', '  
-                    + (i % 17 * 16).toString() 
-                    + ')';
-                    }
-                )
-                .on("mousemove", function() {
+							.append('svg')
+							.attr('viewBox','0 0 1500 100')
+							.attr('style','height:100%;weight:100%')
+							.attr('id','svgplanes')
+							.attr("xmlns", 'http://www.w3.org/2000/svg')
+							.attr("xmlns:svg", 'http://www.w3.org/2000/svg')
+							.attr("xmlns:xlink", 'http://www.w3.org/1999/xlink')
+						;
+			var svgRectSize = Math.floor((1500-8*17)/17);
+			var currentSelectPlane = null;
+			svg1.selectAll('rect')
+				   .data(unicode)
+				   .enter()
+				   .append('rect')
+				   .attr('class','unicode_planes')
+				   .classed("selected", function(d, i){
+                   if(i == plane_select){
+					   currentSelectPlane = d3.select(this);
+                	   return true;
+                   }
+            	   return false;})
+                   .attr("id", function(d,i){return 'plane' + i;})
+                   .attr("x", function(d, i) {return  8 + i * svgRectSize + (i) * 8;})
+                   .attr("y", 8)
+                   .attr("width", svgRectSize)
+                   .attr("height", svgRectSize)
+                   .attr("fill", function(d, i) {
+						return 'rgb(' 
+							+ (0).toString() 
+							+ ', '
+							+ (i % 17 * 16).toString() 
+							+ ', '  
+							+ (i % 17 * 16).toString() 
+							+ ')';})
+                   .on("mousemove", function() {
                     //console.log();
                     //Get this bar's x/y values, then augment for the tooltip
- 
-                    console.log(d3.mouse(this));
-                    var xPosition = parseInt(d3.mouse(this)[0]);
-                    var yPosition = parseInt(d3.mouse(this)[1]);
- 
-                    d3.select("#tooltip_planes").remove();
- 
+                    	console.log(d3.mouse(this));
+                    	var xPosition = parseInt(d3.mouse(this)[0]);
+                    	var yPosition = parseInt(d3.mouse(this)[1]);
+                    	d3.select("#tooltip_planes").remove();
                     //Create the tooltip label
-                    svg1.append("text")
+                    	svg1.append("text")
                         .attr("id", "tooltip_planes")
                         .attr("x", xPosition + 24)
                         .attr("y", yPosition)
@@ -420,12 +396,9 @@
                         .attr("font-size", "11px")
                         .attr("font-weight", "bold")
                         .attr("fill", "white")
-                        .text(xPosition + ', ' + yPosition);
-                })
-                .on("mouseout", function(){
-                    d3.select("#tooltip_planes").remove();
-                })
-                .on("click", function(o_pe, d){
+                        .text(xPosition + ', ' + yPosition);})
+					.on("mouseout", function(){d3.select("#tooltip_planes").remove();})
+					.on("click", function(o_pe, d){
                     plane_select = unicode.indexOf(o_pe);
  
                     currentSelectPlane.classed("selected", false);
@@ -439,8 +412,7 @@
                     d3.select('#plane_now')
                         .html(d + ', plane_select = ' + plane_select)
                     ;
- 
-                    d3.select('#svg').remove();
+					d3.select('#svg').remove();
  
                     build_plane();
                 })
@@ -457,7 +429,8 @@
                     .attr("y", 32)
                     .attr("fill", "#ff0")
                     .attr("font-size", "12pt")
-            ;
+				;/////
+
 			console.log('end build_plane_selection()...');
 		};
 		/***/
@@ -483,20 +456,17 @@
 
 				/** font selection */
 				/** Your code goes here */
-				d3.select('#select-font')
-                    .on('change', function(){
-                            if(this.files[0].name.split('.').slice(-1)[0] != 'ttf'){
-                                return console.error('Not a valid ttf file');
-                            }
- 
-                            var fr = new FileReader();
+				d3.select('#select-font').on('change',function(){
+					if(this.files[0].name.split('.').slice(-1)[0]!='ttf'){
+						return console.error('Not a valid ttf file');
+					}
+					var fr = new FileReader();
                             fr.onload = function(){ 
                                 openTypeFont = opentype.parse(fr.result);
                                 console.log(openTypeFont);
                             };
                             fr.readAsArrayBuffer(this.files[0]);
-                        })
-                ;
+				});
                 /***/
 
 				/** download svg text */
@@ -514,7 +484,7 @@
 			})
 		;
 
-		var so = new ScoreOutputer("111111111");
+		var so = new ScoreOutputer("107590008");
 		so.installCSS(function(){
 			// 安裝 bootstrap 的 css，如果在 html 上方引用 bootstrap 5.1.1 的話就不用使用 installCSS ，注意一定要 bootstrap css 5.1.1 版
 			// installCSS 接收一個 callback 當作參數，作為成功安裝 bootstrap css 的回呼函式
